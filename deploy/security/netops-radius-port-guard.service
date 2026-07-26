@@ -1,0 +1,12 @@
+[Unit]
+Description=NetOps Radius node port guard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/netops-radius-port-guard
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

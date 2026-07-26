@@ -1,0 +1,14 @@
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1
+bantime = 24h
+findtime = 10m
+banaction = iptables-multiport
+
+[sshd]
+enabled = true
+port = 5334
+filter = sshd[mode=aggressive]
+backend = systemd
+maxretry = 5
+findtime = 10m
+bantime = 24h
