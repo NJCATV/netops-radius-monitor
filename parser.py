@@ -1,4 +1,4 @@
-﻿"""
+"""
 radius_monitor/parser.py
 RADIUS 报文解析层：从 libpcap 数据包中提取认证信息
 """

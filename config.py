@@ -1,4 +1,4 @@
-﻿"""
+"""
 radius_monitor/config.py
 全局配置：网络接口、MySQL 连接、服务端口等
 """

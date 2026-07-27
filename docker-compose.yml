@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# RADIUS 实时监控系统 Docker Compose
+# 包含：抓包解析器(sniffer) + Web 报表服务(web)
+# 数据库使用宿主机自带的 MySQL 8.0（监听 172.31.3.117:3306）
+# 部署：docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Web 报表服务 ────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      target: web
+    container_name: radius_web
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      MYSQL_HOST: 172.17.0.1
+      MYSQL_PORT: "3306"
+      MYSQL_DB:   radius_monitor
+      MYSQL_USER: radius
+      MYSQL_PASS: radius123
+      WEB_PORT:   "5000"
+    network_mode: bridge
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── 抓包解析器 ─────────────────────────────────────────────────────────────
+  sniffer:
+    build:
+      context: .
+      target: sniffer
+    container_name: radius_sniffer
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # 将宿主机系统库和 tcpdump 挂载进容器（只读）
+    volumes:
+      - /usr/bin/tcpdump:/usr/bin/tcpdump:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+      - /usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:ro
+    environment:
+      CAPTURE_IFACE: ${CAPTURE_IFACE:-ens33}
+      MYSQL_HOST:    127.0.0.1
+      MYSQL_PORT:    "3306"
+      MYSQL_DB:      radius_monitor
+      MYSQL_USER:    radius
+      MYSQL_PASS:    radius123
+    depends_on:
+      - web

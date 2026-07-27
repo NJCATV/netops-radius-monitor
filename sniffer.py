@@ -1,4 +1,4 @@
-﻿"""
+"""
 radius_monitor/sniffer.py
 高性能抓包入口：基于 tcpdump 管道 + libpcap 解析
 无需 Scapy，直接读取 pcap 二进制流，性能更好，支持高流量环境。
