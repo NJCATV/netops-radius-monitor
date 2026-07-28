@@ -253,8 +253,13 @@ class RadiusClickHouseSink:
                 counter_rollback = int(
                     input_total < int(previous[0]) or output_total < int(previous[1])
                 )
-                input_delta = input_total - int(previous[0]) if input_total >= int(previous[0]) else input_total
-                output_delta = output_total - int(previous[1]) if output_total >= int(previous[1]) else output_total
+                # A counter decrease means the NAS restarted/reused a session
+                # identifier or reset its accounting counter.  The new value is
+                # a baseline, not traffic accumulated since the previous packet.
+                # This matches GOTESSUDP's session-cache behaviour and prevents
+                # a reset from being counted as a very large new increment.
+                input_delta = input_total - int(previous[0]) if input_total >= int(previous[0]) else 0
+                output_delta = output_total - int(previous[1]) if output_total >= int(previous[1]) else 0
             conn.execute(
                 """INSERT INTO session_state(session_key,input_total,output_total,last_event_time,updated_at)
                    VALUES(?,?,?,?,?)

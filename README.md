@@ -2,6 +2,8 @@
 
 RADIUS Monitor 是一个面向 RADIUS 认证流量的实时监控系统。它通过 `tcpdump` 抓取 `udp/1812` 和 `udp/1813` 流量，解析认证与计费报文，写入 MySQL，并通过 Flask Web 页面展示实时统计、拒绝原因、风险账号、NAS 分布和最近认证明细。
 
+Accounting 流量按 `账号 + NAS + Acct-Session-Id` 保存累计计数器快照并计算相邻增量。现场华为 RADIUS+ 的 Octets 字段单位为 KiB，因此由 `RADIUS_COUNTER_SCALE=1024` 转为字节；首次/Start 报文以及计数器回退只更新基线、增量记为 0，避免会话复用或设备重启产生虚高流量。
+
 ## 当前生产部署
 
 - 服务器：`172.25.194.213`

@@ -137,7 +137,8 @@ class ClickHouseSinkTest(unittest.TestCase):
                 )
             self.assertEqual(first["input_delta"], 0)
             self.assertEqual(other["input_delta"], 0)
-            self.assertEqual(rollback["input_delta"], 50 * 1024)
+            self.assertEqual(rollback["input_delta"], 0)
+            self.assertEqual(rollback["output_delta"], 0)
             self.assertEqual(rollback["counter_rollback"], 1)
 
     def test_control_record_normalization_keeps_protocol_evidence(self):
