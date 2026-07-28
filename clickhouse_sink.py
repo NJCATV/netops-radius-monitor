@@ -7,6 +7,7 @@ silent packet-analysis data loss.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import logging
@@ -79,6 +80,7 @@ class RadiusClickHouseSink:
         self.retries = 0
         self.last_error = ""
         self._last_state_cleanup = 0.0
+        self._send_cycle = 0
         self._init_db()
 
     def _connect(self):
@@ -330,9 +332,13 @@ class RadiusClickHouseSink:
             sent_any = False
             try:
                 with self._connection() as conn:
+                    # During a backlog, periodically deliver the newest slice
+                    # first so real-time dashboards stay useful while the
+                    # remaining cycles continue draining the oldest evidence.
+                    order = "DESC" if self._send_cycle % 2 == 0 else "ASC"
                     for target in ("radius_events", "radius_collector_metrics"):
                         rows = conn.execute(
-                            "SELECT id,payload FROM spool WHERE target=? ORDER BY id LIMIT ?",
+                            f"SELECT id,payload FROM spool WHERE target=? ORDER BY id {order} LIMIT ?",
                             (target, config.CLICKHOUSE_BATCH_SIZE),
                         ).fetchall()
                         if not rows:
@@ -346,6 +352,7 @@ class RadiusClickHouseSink:
                         self.sent += len(rows)
                         sent_any = True
                 if sent_any:
+                    self._send_cycle += 1
                     delay = 1.0
                     continue
             except Exception as exc:
@@ -359,14 +366,21 @@ class RadiusClickHouseSink:
 
     def _insert(self, table: str, payload: str):
         query = f"INSERT INTO {config.CLICKHOUSE_DATABASE}.{table} FORMAT JSONEachRow"
+        # The capture host and ClickHouse are connected over a comparatively
+        # slow path. JSONEachRow compresses very well, and sending it compressed
+        # keeps backlog replay comfortably ahead of live packet ingestion.
+        body = gzip.compress(payload.encode("utf-8"), compresslevel=1)
         response = requests.post(
             config.CLICKHOUSE_URL,
             params={"query": query},
-            data=payload.encode("utf-8"),
+            data=body,
             auth=(config.CLICKHOUSE_USER, config.CLICKHOUSE_PASSWORD),
             timeout=(config.CLICKHOUSE_CONNECT_TIMEOUT, config.CLICKHOUSE_READ_TIMEOUT),
             verify=config.CLICKHOUSE_VERIFY_TLS,
-            headers={"Content-Type": "application/x-ndjson"},
+            headers={
+                "Content-Type": "application/x-ndjson",
+                "Content-Encoding": "gzip",
+            },
         )
         if response.status_code != 200:
             raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")

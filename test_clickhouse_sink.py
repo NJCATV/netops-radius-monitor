@@ -1,4 +1,5 @@
 import importlib
+import gzip
 import os
 import tempfile
 import time
@@ -58,7 +59,8 @@ class ClickHouseSinkTest(unittest.TestCase):
             payloads = []
 
             def successful_post(*args, **kwargs):
-                payloads.append(kwargs["data"].decode("utf-8"))
+                self.assertEqual(kwargs["headers"]["Content-Encoding"], "gzip")
+                payloads.append(gzip.decompress(kwargs["data"]).decode("utf-8"))
                 return FakeResponse()
 
             sink = clickhouse_sink.RadiusClickHouseSink()
